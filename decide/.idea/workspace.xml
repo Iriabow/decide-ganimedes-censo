@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="50e84003-3361-44c5-b9eb-de15b2a5c047" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/census/serializer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/base/perms.py" beforeDir="false" afterPath="$PROJECT_DIR$/base/perms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/census/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/census/tests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/census/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/census/views.py" afterDir="false" />
-    </list>
+    <list default="true" id="50e84003-3361-44c5-b9eb-de15b2a5c047" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,6 +12,7 @@
     <session id="-682240629">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
+          <entry key="project.closed" value="1" />
           <entry key="project.open.time.2" value="1" />
           <entry key="project.opened" value="1" />
         </counts>

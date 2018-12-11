@@ -68,8 +68,10 @@ MODULES = [
     'voting',
 ]
 
-BASEURL = 'http://localhost:8000'
-
+BASEURL = 'http://prueba492.herokuapp.com'
+APIS = {}
+import django_heroku
+django_heroku.settings(locals())
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
