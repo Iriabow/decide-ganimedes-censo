@@ -103,11 +103,11 @@ ENV/
 ### Docker local ###
 
 docker-compose.yml
-Dockerfile
-Dockerfile-nginx
-dockerManager.sh
-docker-nginx.conf
-docker-settings.py
+/Dockerfile
+/Dockerfile-nginx
+/dockerManager.sh
+/docker-nginx.conf
+/docker-settings.py
 
 # Created by https://www.gitignore.io/api/pycharm
 
