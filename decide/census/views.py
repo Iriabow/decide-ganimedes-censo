@@ -1,5 +1,7 @@
+from django.contrib import messages
 from django.db.utils import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import redirect
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.status import (
@@ -16,29 +18,29 @@ from .models import Census
 from authentication.models import User
 
 from census.serializer import CensusSerializer
+from authentication import *
 from django.views.generic import TemplateView
 
 from django.http import HttpResponse
 
 
-class VistaBoton(TemplateView):
-    template_name = 'censo.html'
-
-
-def createall(request):
+def addAllRegistered(request):
     voters = User.objects.all()
     voting_id = request.GET.get('voting_id')
 
-    for voter in voters:
-        try:
-            census = Census(voting_id=voting_id, voter_id=voter.id)
-            census.save()
+    if request.user.is_authenticated:
+        if request.user.has_perm('add_census'):
+            for voter in voters:
+                try:
+                    census = Census(voting_id=voting_id, voter_id=voter.id)
+                    census.save()
+                except IntegrityError:
+                    continue
+    else:
+        redirect('/census/?voting_id='+voting_id)
+        #messages.error(request, "Permission denied")
+    return redirect('/census/?voting_id='+voting_id)
 
-        except IntegrityError:
-            continue
-
-    html = "<html><body> It is now %s.</body></html>"
-    return HttpResponse(html)
 
 
 class CensusCreate(generics.ListCreateAPIView):
