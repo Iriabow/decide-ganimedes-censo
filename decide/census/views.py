@@ -47,6 +47,37 @@ def addAllRegistered(request):
     return redirect('/admin/census/census')
 
 
+def addAllBySex(request):
+
+    voting_id = request.GET.get('voting_id')
+    sex = request.GET.get('sex')
+    voters = User.objects.filter(sex=sex)
+
+    list_voting = set(Voting.objects.all().values_list('id', flat=True))
+
+    if request.user.is_authenticated:
+        if request.user.has_perm('add_census'):
+            if voters:
+                if int(voting_id) in list_voting:
+                    for voter in voters:
+                        try:
+                            census = Census(voting_id=voting_id, voter_id=voter.id)
+                            census.save()
+                        except IntegrityError:
+                            continue
+
+                else:
+                    messages.add_message(request, messages.ERROR, "Invalid voting id")
+            else:
+                    messages.add_message(request, messages.WARNING, "No users with sex requested")
+
+
+    else:
+        messages.add_message(request, messages.ERROR, "Permission denied")
+
+    #return redirect('/census/?voting_id=' + voting_id)
+    return redirect('/admin/census/census')
+
 def addAllInCity(request):
 
     voting_id = request.GET.get('voting_id')
