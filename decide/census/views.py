@@ -15,6 +15,7 @@ from rest_framework.status import (
 from base.perms import CensusPermissions
 from .models import Census
 
+from voting.models import Voting
 from authentication.models import User
 
 from census.serializer import CensusSerializer
@@ -27,19 +28,57 @@ from django.http import HttpResponse
 def addAllRegistered(request):
     voters = User.objects.all()
     voting_id = request.GET.get('voting_id')
+    list_voting = set(Voting.objects.all().values_list('id', flat=True))
+
+    if request.user.is_staff:
+        if request.user.has_perm('add_census'):
+            if int(voting_id) in list_voting:
+                for voter in voters:
+                    try:
+                        census = Census(voting_id=voting_id, voter_id=voter.id)
+                        census.save()
+                    except IntegrityError:
+                        continue
+            else:
+                messages.add_message(request, messages.ERROR, "Invalid voting id: " + str(voting_id))
+    else:
+        messages.add_message(request, messages.ERROR, "Permission denied")
+
+    return redirect('/admin/census/census')
+
+
+def addAllInCity(request):
+
+    voting_id = request.GET.get('voting_id')
+    city = request.GET.get('city')
+    voters = User.objects.filter(city__iexact=city)
+
+    list_voting = set(Voting.objects.all().values_list('id', flat=True))
 
     if request.user.is_authenticated:
         if request.user.has_perm('add_census'):
-            for voter in voters:
-                try:
-                    census = Census(voting_id=voting_id, voter_id=voter.id)
-                    census.save()
-                except IntegrityError:
-                    continue
+            if voters:
+
+                if int(voting_id) in list_voting:
+                    for voter in voters:
+                        try:
+                            census = Census(voting_id=voting_id, voter_id=voter.id)
+                            census.save()
+                        except IntegrityError:
+                            continue
+
+                else:
+                    messages.add_message(request, messages.ERROR, "Invalid voting id")
+            else:
+                    messages.add_message(request, messages.WARNING, "No users in city requested")
+
+
     else:
-        redirect('/census/?voting_id='+voting_id)
-        #messages.error(request, "Permission denied")
-    return redirect('/census/?voting_id='+voting_id)
+        messages.add_message(request, messages.ERROR, "Permission denied")
+
+    #return redirect('/census/?voting_id=' + voting_id)
+    return redirect('/admin/census/census')
+
 
 
 
@@ -57,7 +96,7 @@ class CensusCreate(generics.ListCreateAPIView):
         print(type(users))
         try:
             for voter in voters:
-                if voter not in users:
+                if int(voter) not in users:
                     return Response('Voter id does not exist', status=ST_409)
 
                 else:
