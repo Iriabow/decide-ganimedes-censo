@@ -22,6 +22,7 @@ before_script:
   - psql -c "create database decide owner decide" -U postgres
 
 script:
+  - python ./decide/manage.py makemigrations
   - python ./decide/manage.py migrate
   - python ./decide/manage.py test ./decide
 

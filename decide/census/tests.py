@@ -10,16 +10,11 @@ class CensusTestCase(BaseTestCase):
     def setUp(self):
         super().setUp()
 
-        q = Question(desc='test question')
-        q.save()
-        voting1 = Voting.objects.create(name='Voting 1', question=q, postproc_type=PostProcType.IDENTITY)
+        voting1 = Voting.objects.create(name='Voting 1', postproc_type=PostProcType.IDENTITY)
         voting1.id = '40'
         voting1.save()
 
-        q2 = Question(desc='test question')
-        q2.save()
-
-        voting2 = Voting.objects.create(name='Voting 2', question=q2, postproc_type=PostProcType.IDENTITY)
+        voting2 = Voting.objects.create(name='Voting 2', postproc_type=PostProcType.IDENTITY)
         voting2.id = '50'
         voting2.save()
 

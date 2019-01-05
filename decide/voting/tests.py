@@ -33,20 +33,21 @@ class VotingTestCase(BaseTestCase):
         return k.encrypt(msg)
 
     def create_voting(self):
-        q = Question(desc='test question')
+        v = Voting(name='test voting', postproc_type=PostProcType.IDENTITY)
+        v.save()
+
+        q = Question(desc='test question', voting=v)
         q.save()
         for i in range(5):
-            opt = QuestionOption(question=q, option='option {}'.format(i+1))
+            opt = QuestionOption(question=q, option='option {}'.format(i + 1))
             opt.save()
-        v = Voting(name='test voting', question=q, postproc_type=PostProcType.IDENTITY)
-        v.save()
 
         a, _ = Auth.objects.get_or_create(url=settings.BASEURL,
                                           defaults={'me': True, 'name': 'test auth'})
         a.save()
         v.auths.add(a)
 
-        return v
+        return v, q
 
     def create_voters(self, v):
         for i in range(100):
@@ -63,36 +64,39 @@ class VotingTestCase(BaseTestCase):
         user.save()
         return user
 
-    def store_votes(self, v):
+    def store_votes(self, v, q):
         voters = list(Census.objects.filter(voting_id=v.id))
         voter = voters.pop()
 
         clear = {}
-        for opt in v.question.options.all():
+
+        options = QuestionOption.objects.filter(question=q)
+        for opt in options:
             clear[opt.number] = 0
             for i in range(random.randint(0, 5)):
                 a, b = self.encrypt_msg(opt.number, v)
                 data = {
                     'voting': v.id,
                     'voter': voter.voter_id,
-                    'vote': { 'a': a, 'b': b },
+                    'votes': [{'a': a, 'b': b}],
                 }
                 clear[opt.number] += 1
                 user = self.get_or_create_user(voter.voter_id)
                 self.login(user=user.email)
                 voter = voters.pop()
                 mods.post('store', json=data)
-        return clear
+                
+        return clear, options
 
     def test_complete_voting(self):
-        v = self.create_voting()
+        v, q = self.create_voting()
         self.create_voters(v)
 
         v.create_pubkey()
         v.start_date = timezone.now()
         v.save()
 
-        clear = self.store_votes(v)
+        clear, options = self.store_votes(v, q)
 
         self.login()  # set token
         v.tally_votes(self.token)
@@ -101,11 +105,11 @@ class VotingTestCase(BaseTestCase):
         tally.sort()
         tally = {k: len(list(x)) for k, x in itertools.groupby(tally)}
 
-        for q in v.question.options.all():
-            self.assertEqual(tally.get(q.number, 0), clear.get(q.number, 0))
+        for opt in options:
+            self.assertEqual(tally.get(opt.number, 0), clear.get(opt.number, 0))
 
-        for q in v.postproc:
-            self.assertEqual(tally.get(q["number"], 0), q["votes"])
+        for opt in v.postproc[str(q.id)]:
+            self.assertEqual(tally.get(opt["number"], 0), opt["votes"])
 
     def test_create_voting_from_api(self):
         data = {'name': 'Example'}
@@ -125,8 +129,8 @@ class VotingTestCase(BaseTestCase):
         data = {
             'name': 'Example',
             'desc': 'Description example',
-            'question': 'I want a ',
-            'question_opt': ['cat', 'dog', 'horse'],
+            'questions': ['I want a '],
+            'question_opts': [['cat', 'dog', 'horse']],
             'postproc_type': PostProcType.IDENTITY,
         }
 
@@ -134,7 +138,7 @@ class VotingTestCase(BaseTestCase):
         self.assertEqual(response.status_code, 201)
 
     def test_update_voting(self):
-        voting = self.create_voting()
+        voting, question = self.create_voting()
 
         data = {'action': 'start'}
         #response = self.client.post('/voting/{}/'.format(voting.pk), data, format='json')

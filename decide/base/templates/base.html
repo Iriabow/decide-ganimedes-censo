@@ -4,6 +4,10 @@
         {% load static %}
         <!--Import Google Icon Font-->
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        
+        <!--Import ajax and jquery-->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/js/materialize.js"></script>
 
         <!--Import materialize.css-->
         <link type="text/css" rel="stylesheet" href="{% static "decide/css/base.css"%}"/>
@@ -17,19 +21,67 @@
         <title>{% block title %}Decide!{% endblock %}</title>
         {% block extrahead %}
         {% endblock %}
-        
+      
+        <!-- Initialize Materialize JS -->
+        <script type="text/javascript">
+            function initMaterialize(){
+                M.AutoInit();
+            } 
+      
+            $(document).ready(function(){
+              $('select').formSelect();
+            });
+        </script>
+          
     </head>
-    <body>
+    <body onload="initMaterialize()">
+        
+        <style>
+        .language {
+            width:115px;
+        }
+        .language1 {
+            margin-top:10px !important;
+        }
+        .language2 {
+            opacity:0.9 !important;
+            border-radius: 6px !important;
+        }
+        
+        </style>
+         
         <script type="text/javascript" src="{% static "decide/js/materialize.js"%}"></script>
+
+
         <nav class="menu">
             <div class="nav-wrapper blue-grey darken-2">
+                <div class="row">
+                    <div class="language right">
+                        <form action="{% url 'set_language' %}" method="post">
+                            {% csrf_token %}
+                            <input name="next" type="hidden" value="{{ redirect_to }}" />
+                            <div class="col s12 language1">
+                                <select class="browser-default language2" name="language" onchange="this.form.submit()">
+                                    {% get_current_language as LANGUAGE_CODE %}
+                                    {% get_available_languages as LANGUAGES %}
+                                    {% for lang in LANGUAGES %}
+                                    <option value="{{ lang.0 }}" {% if lang.0 == LANGUAGE_CODE %} selected disabled hidden {% endif %}>
+                                        {{ lang.1 }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </form>
+                    </div> 
                 <a href="#" class="brand-logo center">Ganímedes</a>
                     <ul id="nav-mobile" class="right hide-on-med-and-down">
                         {% block menu_options %}
                         {% endblock %}
                     </ul>
                 </div>
+            </div>
             </nav>
+        
         <div class="body">
             {% block content %}
             {% endblock %}

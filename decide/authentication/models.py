@@ -3,6 +3,7 @@ from django.contrib.auth.models import PermissionsMixin
 from django.contrib.auth.base_user import AbstractBaseUser
 from .managers import UserManager
 
+
 # Create your models here.
 class User(AbstractBaseUser, PermissionsMixin):
     SEX_OPTIONS = (

@@ -31,6 +31,8 @@
 
   var token = null;
   var user = null;
+  
+  {% get_current_language as LANGUAGE_CODE %}
 
   function decideSignUp() {
       var data = {
@@ -67,7 +69,7 @@
   }
   function decideUser() {//logged
     var data = { token: token };
-    postData("{{auth_url}}" + "/authentication/getuser/", data)
+    postData("{{auth_url}}" +"/authentication/getuser/", data)
       .then(data => {
         user = data;
         panel('exits');

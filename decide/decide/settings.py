@@ -132,6 +132,12 @@ AUTH_USER_MODEL = 'authentication.User'
 # Internationalization
 # https://docs.djangoproject.com/en/2.0/topics/i18n/
 
+LANGUAGES = (
+    ('en-us', _('English')),
+    ('es', _('Spanish')),
+    ('ca', _('Catalan')),
+)
+
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -164,7 +170,7 @@ else:
     try:
         from local_settings import *
     except ImportError:
-        print("local_settings.py not found")
+        print("local_settings.example.py not found")
 
 
 INSTALLED_APPS = INSTALLED_APPS + MODULES

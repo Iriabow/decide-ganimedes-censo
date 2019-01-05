@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.db.utils import IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.status import (
@@ -13,10 +13,19 @@ from rest_framework.status import (
 )
 
 from base.perms import CensusPermissions
+from census import models
+from census.forms import CensusAddMultipleVotersForm
 from .models import Census
 from voting.models import Voting
 from authentication.models import User
 from census.serializer import CensusSerializer
+
+from authentication import *
+from django.views.generic import TemplateView
+
+from django.http import HttpResponse
+from django.template import loader
+import csv, io
 
 
 def addAllRegistered(request):
@@ -142,3 +151,132 @@ class CensusDetail(generics.RetrieveDestroyAPIView):
         except ObjectDoesNotExist:
             return Response('Invalid voter', status=ST_401)
         return Response('Valid voter')
+
+
+# Formularios
+
+def add_custom_census(request):
+
+    if request.method == 'POST':                                    # Petición POST
+        form = CensusAddMultipleVotersForm(request.POST)
+
+        # Paso 1: Comprobando que los datos se han añadido al formulario correctamente
+
+        if form.is_valid():
+            sex_elections = form.cleaned_data['sex']
+            city_election = form.cleaned_data['city']
+            age_initial_range_election = form.cleaned_data['age_initial_range']
+            age_final_range_election = form.cleaned_data['age_final_range']
+            voting = form.cleaned_data['voting'].__getattribute__('pk')
+
+            # Paso 2: Filtrando los votantes seleccionados...
+
+            voters = User.objects.all()
+
+            # ...por sexos
+
+            if len(sex_elections) != 0:                                 # Si la lista tiene 0 elementos...
+                voters = voters.filter(sex__in=sex_elections)
+
+            # ...por ciudades
+
+            if len(city_election) != 0:                                 # Si la longitud de la cadena es 0...
+                voters = voters.filter(city__iexact=city_election)      # Sin considerar mayúsculas y minúsculas
+
+            # ...por rango de edades
+
+            if age_initial_range_election is not None:                  # Si no se especificó fecha de inicio...
+                voters = voters.filter(birthdate__gte=age_initial_range_election)
+
+            if age_final_range_election is not None:                    # Si no se especificó fecha de fin...
+                voters = voters.filter(birthdate__lte=age_final_range_election)
+
+            # Paso 3: comprobamos que el usuario logueado tiene permisos de creación de censos
+
+            if request.user.is_authenticated:
+                if request.user.has_perm('add_census'):
+
+                    # Paso 4: asignamos todos los votantes al nuevo censo
+
+                    voters_ids = voters.values_list('id', flat=True, named=False)
+
+                    print("Todos los voters_ids: " + str(voters_ids))
+
+                    for voter_id in voters_ids:
+
+                        # Comprobamos que sea único
+
+                        if not is_exists_census(voting, voter_id):
+
+                            census = Census(voting_id=voting, voter_id=voter_id)
+                            census.save()
+
+            return redirect("/admin/census/census")                  # TODO: cambiar redirección
+
+    else:                                                            # Petición GET
+        form = CensusAddMultipleVotersForm()
+
+    context = {
+        'form': form,
+    }
+
+    return render(request, template_name='add_custom_census.html', context=context)
+
+
+def export_csv(request):
+
+    # Paso 1: creamos un HTTPResponse con el apropiado CSV Header
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="census.csv"'
+
+    # Paso 2: capturamos todos los datos
+
+    census = Census.objects.all()
+    cabecera = [field.attname for field in Census._meta.get_fields()]
+
+    # Paso 3: escribimos el fichero CSV
+
+    writer = csv.writer(response)
+    writer.writerow(cabecera)
+
+    for row in census:
+        writer.writerow([row.id, str(row.voting_id), row.voter_id])
+
+    return response
+
+
+def import_csv(request):
+
+    # Paso 1: obtenemos el fichero CSV
+
+    csv_file = request.FILES['file']
+
+    # Paso 2: verificación del fichero CSV
+
+    if not csv_file.name.endswith('.csv'):
+        return redirect("/census/addCustomCensus")
+
+    # Paso 3: persistemos los cambios en la base de datos
+
+    data_set = csv_file.read().decode('UTF-8')
+    io_string = io.StringIO(data_set)
+    next(io_string)
+
+    for column in csv.reader(io_string, delimiter=',', quotechar='|'):
+        _, created = Census.objects.update_or_create(
+            id=column[0],
+            voting_id=column[1],
+            voter_id=column[2],
+        )
+
+    return redirect("/admin/census/census")
+
+
+# Métodos auxiliares
+
+# Comprueba si el censo existe en la base de datos
+
+def is_exists_census(voting_id, voter_id):
+    return Census.objects.filter(voting_id=voting_id, voter_id=voter_id)
+
