@@ -23,7 +23,7 @@ Este proyecto Django estará dividido en apps (subsistemas y proyecto base), don
 Configurar y ejecutar el proyecto
 ---------------------------------
 
-Para configurar el proyecto, podremos crearnos un fichero local_settings.py basado en el
+Para configurar el proyecto sin el script, podremos crearnos un fichero local_settings.py basado en el
 local_settings.example.py, donde podremos configurar la ruta de nuestras apps o escoger que módulos
 ejecutar.
 

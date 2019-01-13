@@ -8,6 +8,6 @@ class CensusAdmin(admin.ModelAdmin):
     list_filter = ('voting_id', )
 
     search_fields = ('voter_id', )
-
+    
 
 admin.site.register(Census, CensusAdmin)

@@ -1,16 +1,14 @@
 {% extends "base.html" %}
 {% load i18n static %}
-{% block title %}
-{% endblock %}
 {% block extrahead %}
     <link type="text/css" rel="stylesheet" href="{% static "decide/css/visualizer/ongoing.css"%}"/>
-{% endblock %}
-{% block menu_options %}
 {% endblock %}
 {% block content %}
 
     <div id="cabecera-votacion">
         <h4>{{voting.name}}</h4>
+        <h5>{{voting.desc}}</h5>
+        <br>
         <p>{% trans 'In Progress' %}</p>
     </div>
 
@@ -21,15 +19,15 @@
                     <span class="card-title">{% trans 'Stats' %}</span>
                     
                     <div class="row">
-                         <div id="info-texto-left" class="col s3 offset-s3">
-                            <p>{% trans 'Census Size:' %}</p>
-                            <p>{% trans 'Voters Turnout:' %}</p>
-                            <p>{% trans 'Participation:' %}</p>
+                         <div id="info-texto-left" class="col s6">
+                            <p class="white-text">{% trans 'Census Size:' %}</p>
+                            <p class="white-text">{% trans 'Voters Turnout:' %}</p>
+                            <p class="white-text">{% trans 'Participation:' %}</p>
                          </div>
                         <div id="info-texto-right" class="col s3">
-                            <p>{{stats_census_size}}</p>
-                            <p>{{stats_voters_turnout}}</p>
-                            <p>{{stats_participation_ratio}}%</p>
+                            <p class="white-text">{{stats_census_size}}</p>
+                            <p class="white-text">{{stats_voters_turnout}}</p>
+                            <p class="white-text">{{stats_participation_ratio}}%</p>
                          </div>
                     </div>
                 </div>
@@ -37,7 +35,7 @@
         </div>
 
         <div class="col m6 s12">
-            <div class="card blue">
+            <div class="card teal lighten-2">
               <div class="card-content">
                 <p class="white-text">{% trans "Interested in the participation according to genders? Check it out!" %}</p>
               </div>
@@ -47,7 +45,7 @@
                     <li class="tab"><a class="active" href="#nonbinary-participation">{% trans "Non-Binary" %}</a></li>
                     <li class="tab"><a href="#men-participation">{% trans "Men" %}</a></li>
               </div>
-              <div class="card-content blue lighten-5 centered-text">
+              <div class="card-content teal lighten-5 centered-text">
                 <div id="women-participation">{{stats_women_participation}} {% trans "women voted" %} - {{stats_women_percentage}}% {% trans "of the total" %}</div>
                 <div id="nonbinary-participation">{{stats_nonbinary_participation}} {% trans "non-binary voted" %} - {{stats_nonbinary_percentage}}% {% trans "of the total" %}</div>
                 <div id="men-participation">{{stats_men_participation}} {% trans "men voted" %} - {{stats_men_percentage}}% {% trans "of the total" %}</div>
@@ -92,10 +90,13 @@
             </li>
             </ul>
             <div class="centered-text">
-                <a href="pdf/" target="_blank">{% trans "Download results as .pdf" %}</a>
-                <br/>
-                <a href="csv/" target="_blank">{% trans "Download results as .csv" %}</a>
+                <p>{% trans "Download results as" %} <a href="pdf/" target="_blank">.pdf</a> 
+                <a href="csv/" target="_blank">.csv</a> 
+                <a href="json/" target="_blank">.json</a> 
+                <a href="xml/" target="_blank">.xml</a>
+                </p>
             </div>
         </div>
+    </div>
 
 {% endblock %}

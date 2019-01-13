@@ -1,4 +1,5 @@
 import statistics
+from authentication.models import User
 
 # Constantes ---------------- 
 
@@ -37,14 +38,13 @@ def age_distribution(ages):
 def mean(data):
     return  None if not data else round(statistics.mean(data), 2)
 
-def get_sexes_participation(votantes, sexes_participation):
+def get_sexes_percentages(sexes_participation, sexes_total):
 
-        for v in votantes:
-            sexes_participation[v[0].sex] = sexes_participation[v[0].sex] + 1
-
-        return sexes_participation
-
-def get_sexes_percentages(sexes_participation, sexes_total, sexes_empty):
+        sexes_empty = {
+            User.SEX_OPTIONS[0][0] : 0,
+            User.SEX_OPTIONS[1][0] : 0,
+            User.SEX_OPTIONS[2][0] : 0
+        }
 
         if sexes_total['W'] == 0:
             sexes_empty['W'] = 100

@@ -14,10 +14,23 @@ class PostProcView(APIView):
                 'postproc': opt['votes'],
             })
         out.sort(key=lambda x: -x['postproc'])
-        return Response(out)
+        return out
 
+    """Este método servirá para crear votaciones en las que el voto de los distintos votantes pueda diferir en su peso.
+    El número de votos de cada opción es multiplicado por el peso indicado en un nuevo campo (weight),
+    para después añadir dicha opción al array de objetos que se devuelve como resultado.
+    Finalmente se re-ordena este array según el valor en el nuevo campo weight de mayor a menor peso."""
     def weight(self, options):
-        return self.identity(options)  # TODO
+        out = []
+
+        for opt in options:
+            out.append({
+                **opt,
+                'postproc': opt['votes'] * opt['weight'],
+            })
+
+        out.sort(key=lambda x: -x['postproc'])
+        return out
 
     def seats(self, options, sts):
 
@@ -57,7 +70,7 @@ class PostProcView(APIView):
             partido = opt_con_escanos[indice_ganador]
             partido["postproc"] += 1
         opt_con_escanos.sort(key=lambda x: -x['postproc'])
-        return Response(opt_con_escanos)
+        return opt_con_escanos
 
     def team(self, options):
 
@@ -75,44 +88,106 @@ class PostProcView(APIView):
 
         def lista_ordenada(lista_votos, votos_ordenados):
             sorted_teams = []
+            lista_votos_aux = lista_votos
+
             for i in votos_ordenados:
                 listax = []
-                ind = lista_votos.index(i)
+                ind = lista_votos_aux.index(i)
+                lista_votos_aux[ind] = -1
+
                 for opt in options:
-                    if opt['team'] == ind:
+                    if opt['team'] == ind and not(opt in sorted_teams):
                         listax.append(opt)
-                listax.sort(key = lambda x: -x['votes'])
+                listax.sort(key=lambda x: -x['votes'])
+                
                 for l in listax:
                     sorted_teams.append(l)
+
             return sorted_teams
 
         n_teams = obtener_n_equipos()
         votes_per_team = atribuir_votos()
-        equipos_mayor_a_menor = sorted(votes_per_team, key=int, reverse = True)
+        equipos_mayor_a_menor = sorted(votes_per_team, key=int, reverse=True)
         equipos = lista_ordenada(votes_per_team, equipos_mayor_a_menor)
-        return Response(equipos)
+        return equipos
+
+    """"Este método aplica paridad de resultados a una votación. Es decir, dada una lista de candidatos con
+    sus respectivos atributos, siendo los más relevantes el número de votos y el género de los candidatos,
+    devuelve una lista de candidatos ordenada por número de votos, alternando siempre entre hombres y mujeres,
+    para asegurar así la paridad de los resultados. Para garantizar que la lista par resultante sea lo más
+    justa posible, se realizan comparaciones dos a dos entre un candidato hombre y mujer, de modo que él que
+    resulte más votado ocupará una mejor posición en la lista resultante tras aplicar el método."""
 
     def parity(self, options):
-        return self.identity(options)  # TODO
+        #Si no hay opciones, devuelve un array vacío
+        if len(options) == 0:
+            return []
+
+        hombres = []
+        mujeres = []
+        for opt in options:
+            # si la opcion es un hombre, añadelo a la lista hombres, si no, a mujer.
+            if opt['gender']:
+                hombres.append(opt)
+            else:
+                mujeres.append(opt)
+
+        # lista Ordenada de hombres por numero de votos
+        hombres.sort(key=lambda x: -x['votes'])
+        # lista Ordenada de mujeres por numero de votos
+        mujeres.sort(key=lambda x: -x['votes'])
+
+        res = []
+
+        # tendrá el valor de la longitud de la lista más corta (hombres o mujeres)
+        r = 0
+        # la lista con más candidatos de las dos
+        listaSecundaria = []
+
+        if len(hombres) < len(mujeres):
+            r = len(hombres)
+            listaSecundaria = mujeres
+        else:
+            r = len(mujeres)
+            listaSecundaria = hombres
+
+        # añade a la lista resultado todos los elementos de la que fuera la
+        # lista más larga. De este modo, se ordenaran los elementos de las
+        # listas aplicando paridad hasta que en una de las dos no haya más
+        # elementos. Entonces, completamos la lista resultado con los
+        # candidatos de la lista que aún no se ha terminado de recorrer.
+
+        for i in range(r):
+            if hombres[i]['votes'] > mujeres[i]['votes']:
+                res.append(hombres[i])
+                res.append(mujeres[i])
+            else:
+                res.append(mujeres[i])
+                res.append(hombres[i])
+
+        for opt in listaSecundaria:
+            if opt not in res:
+                res.append(opt)
+
+        return res
 
     def post(self, request):
         t = request.data.get('type', PostProcType.IDENTITY)
-        opts = request.data.get('options', [])
-        sts = request.data.get('seats', -1)
+        qsts = request.data.get('questions', [])
+        questions = []
 
-        if t == PostProcType.IDENTITY:
-            return self.identity(opts)
-        elif t == PostProcType.WEIGHT:
-            return self.weight(opts)
-        elif t == PostProcType.SEATS:
-            return self.seats(opts, sts)
-        elif t == PostProcType.PARITY:
-            return self.parity(opts)
-        elif t == PostProcType.TEAM:
-            return self.team(opts)
+        for qst in qsts:
+            if t == PostProcType.IDENTITY:
+                questions.append({'number': qst['number'], 'options': self.identity(qst['options'])})
+            elif t == PostProcType.WEIGHT:
+                questions.append({'number': qst['number'], 'options': self.weight(qst['options'])})
+            elif t == PostProcType.SEATS:
+                questions.append({'number': qst['number'], 'options': self.seats(qst['options'], qst['seats']), 'seats': qst['seats']})
+            elif t == PostProcType.PARITY:
+                questions.append({'number': qst['number'], 'options': self.parity(qst['options'])})
+            elif t == PostProcType.TEAM:
+                questions.append({'number': qst['number'], 'options': self.team(qst['options'])})
+            else:
+                questions.append({'number': qst['number'], 'options': self.identity(qst['options'])})
 
-        return self.identity(opts)
-
-
-
-
+        return Response({'questions': questions, 'type': t})

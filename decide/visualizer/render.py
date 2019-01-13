@@ -4,6 +4,9 @@ from django.template.loader import get_template
 import xhtml2pdf.pisa as pisa
 import csv
 import json
+import xml.etree.ElementTree as ET
+from wsgiref.util import FileWrapper
+from xml.dom.minidom import *
 
 
 class Render:
@@ -27,18 +30,50 @@ class Render:
 
         votacion = params['voting']
         writer = csv.writer(response)
-
-        writer.writerow([votacion['name'], votacion['question']['desc']])
+        print(votacion)
 
         if path == 'visualizer/ended_export.html':
             
-            writer.writerow(['Opción', 'Número de votos'])
-            resultados = params['voting']['postproc']
+            writer.writerow([votacion['name']])
+            writer.writerow(['Resultados'])
 
-            for r in resultados:
-                writer.writerow([r['option'], r['votes']])
+            for q in votacion['questions']:
+                writer.writerow([q['number'], q['desc']])
+
+                if votacion['postproc']['type'] == 1 or votacion['postproc']['type'] == 2:
+                    writer.writerow(['Opción', 'Total', 'Número de votos'])
+
+                elif votacion['postproc']['type'] == 3:
+                    writer.writerow(['Género', 'Opción', 'Número de votos'])
+                
+                elif votacion['postproc']['type'] == 4:
+                    writer.writerow(['Equipo', 'Opción', 'Número de votos'])
+
+                else:
+                    writer.writerow(['Opción', 'Número de votos'])
+
+
+                for p in votacion['postproc']['questions']:
+                    if p['number'] == q['number']:
+                        for o in p['options']:
+
+                            if votacion['postproc']['type'] == 1 or votacion['postproc']['type'] == 2:
+                                writer.writerow([o['option'], o['postproc'], o['votes']])
+
+                            elif votacion['postproc']['type'] == 3:
+                                gender = "Hombre" if o['gender'] == True else "Mujer"
+                                writer.writerow([gender, o['option'], o['votes']])
+
+                            elif votacion['postproc']['type'] == 4:
+                                writer.writerow([o['team'], o['option'], o['votes']])
+                            
+                            else:
+                                writer.writerow([o['option'], o['postproc']])
         
         elif path == 'visualizer/ongoing_export.html':
+
+            writer.writerow([votacion['name']])
+            writer.writerow(['Votación en curso'])
 
             writer.writerow(['Estadísticas'])
             writer.writerow(['Tamaño del censo', str(params['stats_census_size'])])
@@ -80,18 +115,36 @@ class Render:
             # Descripción del informe
             results_description = {}
             results_description['Votación'] = votacion['name']
+            if votacion['desc']:
+                results_description['Descripción'] = votacion['desc']
             results_description['Id'] = votacion['id']
 
             # Resultados
-            results_results = {}
             resultados = votacion['postproc']
+            preguntas = {}
+            
+            for i,q in enumerate(resultados['questions']):
+                results_results = {}
 
-            for r in resultados:
-                results_results[str(r['option'])] = str(r['votes'])
+                for r in q['options']:
+
+                    if resultados['type'] == 0:
+                        results_results[str(r['option'])] = "Número de votos: {}".format(r['postproc'])
+                    elif resultados['type'] == 1 or resultados['type'] == 2:
+                        results_results[str(r['option'])] = "Total: {} - Número de votos: {}".format(r['postproc'], r['votes'])
+                    elif resultados['type'] == 3:
+                        genero = "Hombre" if r['gender'] else "Mujer"
+                        results_results[str(r['option'])] = " ({}) - Número de votos: {}".format(genero, r['votes'])
+                    elif resultados['type'] == 4:
+                         results_results['Equipo ' + str(r['team']) + " - " + str(r['option'])] = "Número de votos: {}".format(r['votes'])
+                    else:
+                        results_results[str(r['option'])] = r['votes']
+                
+                preguntas[str(votacion['questions'][i]['desc'])] = results_results
             
             # Composición de la jerarquía
             results_main['Información de la Votación'] = results_description
-            results_main['Resultados'] = results_results
+            results_main['Resultados por Pregunta'] = preguntas
 
             export['Informe de Resultados'] = results_main
 
@@ -101,6 +154,13 @@ class Render:
             
             export = {}
             stats_main = {}
+
+            # Descripción del informe
+            stats_description = {}
+            stats_description['Votación'] = votacion['name']
+            if votacion['desc']:
+                stats_description['Descripción'] = votacion['desc']
+            stats_description['Id'] = votacion['id']
 
             #Estadísticas básicas de una votación
             stats_basicas = {}
@@ -134,6 +194,7 @@ class Render:
 
             #Composición de la jerarquía
             stats_edad['Análisis de la participación según rango etario'] = stats_edad_rango
+            stats_main['Información de la Votación'] = stats_description
             stats_main['Estadísticas básicas de una votación'] = stats_basicas
             stats_main['Estadísticas basadas en la edad'] = stats_edad
             stats_main['Estadísticas basadas en el género'] = stats_genero
@@ -143,3 +204,146 @@ class Render:
             json.dump(export, response)
 
         return response
+
+    def render_xml(voting_status, params):
+
+        response = HttpResponse(content_type='application/xml')
+        response['Content-Disposition'] = 'attachment; filename="resultados.xml"'
+
+        votacion = params['voting']
+
+        if voting_status == 'ended':
+            # Creación del XML 
+
+            #Descripción del informe
+            voting = ET.Element("voting")
+            name = ET.SubElement(voting, 'name')
+            name.text = votacion['name']
+            desc = ET.SubElement(voting, 'description')
+            desc.text = votacion['desc']
+            id = ET.SubElement(voting, 'id')
+            id.text = str(votacion['id'])
+
+            #Resultados
+            results = ET.SubElement(voting, "results")
+            questions = votacion['postproc']['questions']
+
+            for q in questions:
+                pregunta = votacion['questions'][q['number']-1]
+
+                question = ET.SubElement(results, 'question')
+                desc = ET.SubElement(question, 'desc')
+                desc.text = pregunta['desc']
+                number = ET.SubElement(question, 'number')
+                number.text = str(q['number'])
+                options = ET.SubElement(question, 'options')
+                for o in q['options']:
+                    option = ET.SubElement(options, 'option')
+                    desc = ET.SubElement(option, 'desc')
+                    desc.text = o['option']
+                    if(votacion['postproc']['type'] == 1 or votacion['postproc']['type'] == 2):
+                        postproc = ET.SubElement(option, 'postproc')
+                        postproc.text = str(o['postproc'])
+                        votes = ET.SubElement(option, 'votes')
+                        votes.text = str(o['votes'])
+                    elif(votacion['postproc']['type'] == 3):
+                        if(o['gender']==True):
+                            gender = ET.SubElement(option, 'gender')
+                            gender.text = "Male"
+                        else:
+                            gender = ET.SubElement(option, 'gender')
+                            gender.text = "Female"
+                        votes = ET.SubElement(option, 'votes')
+                        votes.text = str(o['votes'])
+                    elif(votacion['postproc']['type'] == 4):
+                        team = ET.SubElement(option, 'team')
+                        team.text = str(o['team'])
+                        votes = ET.SubElement(option, 'votes')
+                        votes.text = str(o['votes'])
+                    else:
+                        postproc = ET.SubElement(option, 'postproc')
+                        postproc.text = str(o['postproc'])
+
+
+            #Pasar el XML a String
+            mydata = ET.tostring(voting)
+
+            #Añadirlo al response
+            dom = parseString(mydata)
+            dom.toprettyxml(encoding='UTF-8')
+            dom.writexml(response)  
+        
+        elif voting_status == 'ongoing':
+            
+            # Creación del XML 
+
+            #Descripción del informe
+            voting = ET.Element("voting")
+            name = ET.SubElement(voting, 'name')
+            name.text = votacion['name']
+            desc = ET.SubElement(voting, 'description')
+            desc.text = votacion['desc']
+            id = ET.SubElement(voting, 'id')
+            id.text = str(votacion['id'])
+
+            #Estadisticas
+            stats = ET.SubElement(voting, 'stats')
+
+            #Estadísticas básicas de una votación
+
+            basics = ET.SubElement(stats, 'basics')
+            censusSize = ET.SubElement(basics, 'censusSize')
+            censusSize.text = str(params['census_size'])
+            numVotes = ET.SubElement(basics, 'numVotes')
+            numVotes.text =  str(params['voters_turnout'])
+            participationRatio = ET.SubElement(basics, 'participationRatio')
+            participationRatio.text = str(params['participation_ratio']) + '%'
+
+
+            #Estadísticas de edad
+            age = ET.SubElement(stats, 'byAge')
+            if params['voters_age_mean']:
+                votersAgeMean = ET.SubElement(age, 'votersAgeMean')
+                votersAgeMean.text = str(params['voters_age_mean']) + ' years'
+
+            if params['no_voters_age_mean']:
+                noVotersAgeMean = ET.SubElement(age, 'noVotersAgeMean')
+                noVotersAgeMean.text =  str(params['no_voters_age_mean']) + ' years'
+            
+            #Estadísticas por rango etario
+            ageRange = ET.SubElement(stats, 'byAgeRange')
+            
+            for rango, cantidad in params['voters_age_dist'].items():
+                age = ET.SubElement(ageRange, 'age')
+                value = ET.SubElement(age, 'value')
+                value.text = str(rango) + ' años'
+                quantity = ET.SubElement(age, 'quantity')
+                quantity.text = str(cantidad) + '%'
+
+            #Estadísticas por género
+            genre = ET.SubElement(stats, "byGenre")
+            
+            numWomen = ET.SubElement(genre, 'numWomen')
+            numWomen.text = str(params['women_participation'])
+            ratioWomen = ET.SubElement(genre, 'ratioWomen')
+            ratioWomen.text = str(params['women_percentage']) + '%'
+            nonBinary = ET.SubElement(genre, 'nonBinary')
+            nonBinary.text = str(params['nonbinary_participation'])
+            ratioNonBinary = ET.SubElement(genre, 'ratioNonBinary')
+            ratioNonBinary.text = str(params['nonbinary_percentage']) + '%'
+            numMen = ET.SubElement(genre, 'numMen')
+            numMen.text = str(params['men_participation'])
+            ratioMen = ET.SubElement(genre, 'ratioMen')
+            ratioMen.text = str(params['men_percentage']) + '%'
+
+            #Pasar el XML a String
+            mydata = ET.tostring(voting)
+
+            #Añadirlo al response
+            dom = parseString(mydata)
+            dom.toprettyxml()
+            dom.writexml(response)
+
+        return response
+
+      

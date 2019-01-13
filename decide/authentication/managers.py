@@ -5,7 +5,7 @@ class UserManager(BaseUserManager):
 
     def _create_user(self, email, password, is_staff, **extra_fields):
         if not email:
-            raise ValueError('The given email must be set')
+            raise ValueError('The given email must be set, or published if you are trying to login with GitHub')
         email = self.normalize_email(email)
         user = self.model(email=email, is_staff=is_staff, **extra_fields)
         user.set_password(password)

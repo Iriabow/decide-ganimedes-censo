@@ -59,4 +59,5 @@ deploy:
     tags: false
 
 notifications:
-    email: false
+  email: false
+
